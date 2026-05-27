@@ -10,12 +10,14 @@
 - icon-only button은 의미 있는 label을 가져야 한다.
 - decorative image는 screen reader에서 불필요하게 읽히지 않게 처리한다.
 - 상태 변화는 필요한 경우 accessibility announcement로 전달한다.
+- 인증, 결제, 삭제, 제출 등 핵심 action은 screen reader 사용자가 목적과 결과를 이해할 수 있어야 한다.
 
 ## touch target
 
 - 주요 tap target은 충분한 크기와 간격을 가진다.
 - 작은 icon button은 hit slop 또는 충분한 padding을 둔다.
 - destructive action은 실수로 누르기 어렵게 배치하고 확인 흐름을 둔다.
+- permission 요청 화면의 허용/거부 경로는 모두 접근 가능한 control이어야 한다.
 
 ## focus and navigation
 
@@ -33,3 +35,4 @@
 
 - 최소 하나의 주요 flow는 screen reader 기준으로 수동 점검한다.
 - component test에서는 중요한 label, role, error message를 검증한다.
+- permission denied, form error, offline error 상태도 접근성 검증 대상에 포함한다.

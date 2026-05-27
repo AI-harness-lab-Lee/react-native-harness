@@ -1,5 +1,7 @@
 # Mobile Plan
 
+이 문서는 실제 프로젝트 내용을 기준으로 작성합니다. 빈 항목, placeholder, "추후 작성" 상태로는 모바일 계획 검증을 통과할 수 없습니다.
+
 ## 앱 목표
 
 - 목적:
@@ -82,6 +84,7 @@ storage:
 - 요청 시점:
 - 사용자 설명:
 - 거부 시 fallback:
+- OS permission string:
 
 ## offline behavior
 
@@ -97,6 +100,8 @@ storage:
 - integration:
 - e2e:
 - device/platform matrix:
+- 접근성 검증:
+- offline/online 전환 검증:
 
 ## 배포 전략
 
@@ -106,6 +111,7 @@ storage:
 - environment config:
 - crash reporting:
 - OTA update policy:
+- production secret/dev endpoint 검증:
 
 ## 주요 리스크
 

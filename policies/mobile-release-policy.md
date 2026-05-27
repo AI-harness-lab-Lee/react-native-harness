@@ -9,13 +9,14 @@ release readiness는 코드 완성만으로 통과하지 않는다. build, signi
 - iOS와 Android release build가 각각 성공해야 한다.
 - Expo 프로젝트는 EAS Build profile을 dev/staging/prod로 분리한다.
 - React Native CLI 프로젝트는 Xcode/Gradle release build 절차를 문서화한다.
-- release build에서 debug menu, development endpoint, test credential이 비활성화되어야 한다.
+- release build에서 debug menu, development endpoint, test credential이 비활성화되어야 한다. production build에 dev endpoint 또는 secret이 포함되면 차단 이슈다.
 
 ## signing
 
 - iOS certificate, provisioning profile, App Store Connect 권한 소유자를 문서화한다.
 - Android keystore, key alias, backup 위치, rotation 절차를 문서화한다.
 - signing credential은 repository에 저장하지 않는다.
+- iOS/Android signing 소유자와 갱신 절차가 없으면 release 차단 이슈다.
 
 ## environment config
 
@@ -28,12 +29,14 @@ release readiness는 코드 완성만으로 통과하지 않는다. build, signi
 - crash reporting 도구를 하나 이상 설정한다.
 - source map 또는 native symbol upload 절차를 release checklist에 기록한다.
 - PII와 token이 crash report에 포함되지 않게 필터링한다.
+- crash reporting 설정 또는 release build 검증이 없으면 release 차단 이슈다.
 
 ## OTA update
 
 - OTA update는 JavaScript/resource 변경에만 사용한다.
 - native module, permission, entitlements, app config 변경은 binary release가 필요하다.
 - rollback 조건과 배포 중단 기준을 정한다.
+- OTA update policy가 없으면 release 차단 이슈다.
 
 ## store submission
 

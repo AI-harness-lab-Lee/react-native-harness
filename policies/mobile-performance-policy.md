@@ -9,6 +9,7 @@
 - 앱 시작 시 불필요한 API 호출과 무거운 초기화를 피한다.
 - auth restore, remote config, initial navigation 결정은 timeout과 fallback을 둔다.
 - splash screen이 무한 대기하지 않게 실패 경로를 둔다.
+- cold start에서 blocking permission request를 실행하지 않는다.
 
 ## rendering
 
@@ -16,6 +17,7 @@
 - list item은 불필요한 re-render를 줄인다.
 - navigation 전환 중 무거운 계산을 피한다.
 - image는 화면 크기에 맞는 크기와 caching 전략을 사용한다.
+- animation, gesture, bottom sheet, modal 전환 중 JS thread를 장시간 점유하지 않는다.
 
 ## network and cache
 
@@ -33,3 +35,4 @@
 
 - release 전 핵심 flow의 cold start, list scroll, API retry, offline 전환을 수동 또는 자동으로 점검한다.
 - 성능 개선은 추측만으로 처리하지 말고 profiler, logs, reproduction step 중 하나 이상의 근거를 남긴다.
+- `mobile-review.md`의 검증 결과에는 최소한 build/test와 핵심 모바일 흐름의 수동 또는 자동 검증 결과를 남긴다.

@@ -1,6 +1,6 @@
 ---
 name: react-native-harness
-description: Use this specialist harness for React Native, Expo, iOS, Android, or mobile app projects. It plans mobile architecture, storage, navigation, permissions, offline behavior, testing, security, and release readiness, then produces mobile plan and review reports for PM Harness gates.
+description: Use this specialist harness for React Native, Expo, iOS, Android, mobile app, navigation, storage, permissions, offline behavior, mobile security, and release readiness work. It writes and validates .harness/mobile-plan.md and .harness/reports/mobile-review.md for project-local PM Harness gates.
 ---
 
 # React Native Harness
@@ -13,16 +13,34 @@ Human-facing plans, questions, and reports must be Korean. Machine-facing ids, f
 
 ## First Reads
 
-1. Read `harness.yaml`.
-2. Read `.harness/spec.md`, `.harness/architecture.md`, and `.harness/task-packet.md` if present.
-3. Read this harness's `HARNESS_DESIGN.md`.
-4. Load only the relevant template or policy file when producing that artifact.
+Before planning, implementing, or reviewing, read the project files that exist from this list:
+
+1. `harness.yaml`
+2. `.harness/spec.md`
+3. `.harness/architecture.md`
+4. `.harness/task-packet.md`
+5. `.harness/mobile-plan.md`
+6. `.harness/reports/mobile-review.md`
+7. `package.json`
+8. `app.json` or `app.config.ts`
+9. `eas.json`
+10. `src/`
+11. `app/`
+12. `ios/`
+13. `android/`
+
+Then read this harness's `HARNESS_DESIGN.md`.
+Load only the relevant template or policy file when producing or validating that artifact.
+
+If `app/` exists with Expo Router conventions, inspect routing and deep link behavior there. If `src/` exists, inspect feature, navigation, API, storage, and permission boundaries there. If `ios/` or `android/` exists, treat native signing, permission, entitlement, and build configuration as in scope.
 
 ## Core Outputs
 
-- Write or update `.harness/mobile-plan.md` from `templates/mobile-plan.md`.
-- Write or update `.harness/reports/mobile-review.md` from `templates/mobile-review.md`.
+- Write or update `.harness/mobile-plan.md` from `templates/mobile-plan.md`; this is the mobile architecture and implementation plan.
+- Write or update `.harness/reports/mobile-review.md` from `templates/mobile-review.md`; this is the mobile review report consumed by PM review gates.
 - When reviewing, include mobile findings in `.harness/reports/review-score.json` if the PM flow asks for score aggregation.
+- Validate `.harness/mobile-plan.md` with `scripts/check_mobile_plan.py` before implementation starts.
+- Validate `.harness/reports/mobile-review.md` with `scripts/check_mobile_review.py` before asking PM to pass the review gate.
 
 ## Decision Defaults
 
@@ -63,9 +81,10 @@ Use these policy files as review criteria:
 
 Block review when any of these are true:
 
-- Token or refresh token is stored in non-secure storage.
+- Token or refresh token is stored in `async-storage` or any non-secure storage.
 - PII is stored locally without documented encryption, retention, and deletion policy.
-- Deep links route to authenticated or destructive screens without validation.
-- Required permissions are requested without user-facing purpose and fallback path.
-- Release path lacks signing ownership, environment separation, or crash reporting plan.
+- Deep links route to sensitive, authenticated, or destructive screens without allowlist, auth state, and parameter validation.
+- Required permissions are requested without user-facing purpose and denial fallback.
+- Production build includes development endpoints, test credentials, or secrets.
+- Release path lacks signing ownership, crash reporting, or OTA update policy.
 - Critical mobile flow has no test strategy.

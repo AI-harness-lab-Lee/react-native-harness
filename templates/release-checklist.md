@@ -6,6 +6,7 @@
 - [ ] iOS와 Android build artifact가 분리되어 관리된다.
 - [ ] dev/staging/prod environment config가 분리되어 있다.
 - [ ] secret이 repository에 저장되지 않는다.
+- [ ] production build에 dev endpoint, test credential, secret이 포함되지 않는 것을 확인했다.
 
 ## signing
 
@@ -18,12 +19,14 @@
 - [ ] crash reporting SDK가 설정되어 있다.
 - [ ] release build에서 crash report 수집이 검증되었다.
 - [ ] source map 또는 symbol upload 절차가 있다.
+- [ ] crash report에서 token, email, phone, address 등 민감 정보가 필터링된다.
 
 ## OTA update policy
 
 - [ ] OTA update 가능 범위가 문서화되어 있다.
 - [ ] native binary 변경이 필요한 update 기준이 문서화되어 있다.
 - [ ] rollback 조건과 절차가 정해져 있다.
+- [ ] OTA update를 끄거나 중단해야 하는 조건이 정해져 있다.
 
 ## store readiness
 

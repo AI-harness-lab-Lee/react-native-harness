@@ -24,6 +24,8 @@ score_categories:
   - release_readiness
 ```
 
+위 metadata는 PM 하네스 registry와 동일해야 합니다. 이 하네스는 전역 Codex skill이 아니라 프로젝트별 clone 하네스이며, PM `$setup`에서 `project_type: mobile`과 `mobile: expo` 또는 `mobile: react-native`가 선택될 때 `.harness/harnesses/react-native-harness` 아래로 설치됩니다.
+
 ## 기본 철학
 
 모바일 앱은 웹보다 권한, 저장소, 배포, 네이티브 의존성, 앱스토어 릴리즈 리스크가 큽니다. 따라서 하네스는 코드 구조뿐 아니라 권한 요청, local storage, token handling, offline behavior, navigation safety, crash reporting, release checklist까지 검토해야 합니다.
@@ -101,6 +103,10 @@ QA는 `qa-harness`와 협력하지만, iOS/Android, simulator/device, OS version
 - `.harness/mobile-plan.md`: 모바일 설계와 개발 전략
 - `.harness/reports/mobile-review.md`: 모바일 전문 리뷰 결과
 - `.harness/reports/review-score.json`: PM review gate가 읽는 점수 자료에 mobile category 반영
+
+`mobile-plan.md`는 실제 프로젝트의 runtime/tooling, architecture, navigation, state management, API, storage, permission, offline behavior, test, release 전략을 채운 문서여야 합니다. 빈 템플릿, placeholder, "추후 작성" 상태는 implementation gate를 통과할 수 없습니다.
+
+`mobile-review.md`는 `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue 상태, recommendations, next actions, build/test/mobile verification 결과를 포함해야 합니다. unresolved critical issue가 있거나 점수가 0/10 그대로 남아 있으면 review gate를 통과할 수 없습니다.
 
 ## 협업 모델
 
