@@ -1,6 +1,6 @@
 # Mobile Review
 
-이 문서는 실제 구현과 검증 결과를 기준으로 작성합니다. 빈 템플릿, 0/10 점수, unresolved critical issue, 비어 있는 검증 결과는 review gate를 통과할 수 없습니다.
+이 문서는 실제 구현과 검증 결과를 기준으로 작성합니다. 빈 템플릿, 0/10 점수, 8점 미만 점수, unresolved critical issue, 비어 있는 검증 결과는 review gate를 통과할 수 없습니다.
 
 ## mobile_quality 점수
 
@@ -76,11 +76,11 @@ release_readiness: 0/10
 
 ## recommendations
 
-- 
+-
 
 ## next actions
 
-- 
+-
 
 ## 검증 결과
 

@@ -65,7 +65,7 @@ scripts/check_mobile_review.py
 이 하네스가 담당하는 프로젝트 산출물은 다음 두 개입니다.
 
 - `.harness/mobile-plan.md`: 모바일 앱 목표, 플랫폼, runtime/tooling, architecture, navigation, state management, API, storage, permission, offline behavior, test, release 전략
-- `.harness/reports/mobile-review.md`: `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue, recommendations, next actions, 검증 결과
+- `.harness/reports/mobile-review.md`: `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue, recommendations, next actions, 검증 결과. 각 점수는 `8.0/10` 이상이어야 하며 8점 미만은 통과할 수 없습니다.
 
 검증 스크립트는 실제 프로젝트 root에서 실행합니다.
 

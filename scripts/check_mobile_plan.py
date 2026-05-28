@@ -71,8 +71,7 @@ def empty_item_count(text: str) -> int:
 
 
 def placeholder_count(text: str) -> int:
-    lowered = text.lower()
-    return sum(1 for word in PLACEHOLDER_WORDS if word in lowered)
+    return sum(len(re.findall(re.escape(word), text, re.IGNORECASE)) for word in PLACEHOLDER_WORDS)
 
 
 def load_template() -> str:

@@ -27,10 +27,15 @@ PLACEHOLDER_WORDS = {
     "tbd",
     "placeholder",
     "template",
+    "템플릿",
     "작성 필요",
     "추후 작성",
     "미정",
+    "개선 권고",
+    "다음 액션",
 }
+MIN_SCORE = 8.0
+MAX_PLACEHOLDERS = 3
 
 
 def normalize(text: str) -> str:
@@ -57,8 +62,8 @@ def score_map(text: str) -> dict[str, float]:
     scores: dict[str, float] = {}
     for category in SCORE_CATEGORIES:
         patterns = [
-            rf"\b{re.escape(category)}\s*:\s*(\d+(?:\.\d+)?)\s*/\s*10\b",
-            rf"\|\s*{re.escape(category)}\s*\|\s*(\d+(?:\.\d+)?)\s*(?:/\s*10)?\s*\|",
+            rf"\b{re.escape(category)}\s*:\s*(-?\d+(?:\.\d+)?)\s*/\s*10\b",
+            rf"\|\s*{re.escape(category)}\s*\|\s*(-?\d+(?:\.\d+)?)\s*(?:/\s*10)?\s*\|",
         ]
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE)
@@ -104,6 +109,10 @@ def has_verification_result(section: str) -> bool:
     return meaningful >= 2
 
 
+def placeholder_count(text: str) -> int:
+    return sum(len(re.findall(re.escape(word), text, re.IGNORECASE)) for word in PLACEHOLDER_WORDS)
+
+
 def validate(project_root: Path) -> list[str]:
     failures: list[str] = []
     path = project_root / ".harness" / "reports" / "mobile-review.md"
@@ -123,8 +132,10 @@ def validate(project_root: Path) -> list[str]:
             failures.append(f"필수 score category가 없습니다: {category}")
         elif scores[category] == 0:
             failures.append(f"{category} 점수가 0/10 그대로입니다.")
-        elif not 0 <= scores[category] <= 10:
+        elif scores[category] < 0 or scores[category] > 10:
             failures.append(f"{category} 점수 범위가 올바르지 않습니다: {scores[category]}")
+        elif scores[category] < MIN_SCORE:
+            failures.append(f"{category} 점수가 기준 미만입니다: {scores[category]} < 8")
 
     critical_section = extract_section(text, "Critical Issues")
     if not critical_section:
@@ -135,6 +146,10 @@ def validate(project_root: Path) -> list[str]:
     verification = extract_section(text, "검증 결과")
     if not has_verification_result(verification):
         failures.append("검증 결과 섹션의 build/test 또는 mobile verification 결과가 비어 있습니다.")
+
+    placeholders = placeholder_count(text)
+    if placeholders >= MAX_PLACEHOLDERS:
+        failures.append(f"placeholder 표현이 너무 많습니다: {placeholders}개")
 
     useful_words = re.findall(r"[A-Za-z0-9가-힣_/-]+", text)
     if len(useful_words) < 100:

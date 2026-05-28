@@ -106,7 +106,7 @@ QA는 `qa-harness`와 협력하지만, iOS/Android, simulator/device, OS version
 
 `mobile-plan.md`는 실제 프로젝트의 runtime/tooling, architecture, navigation, state management, API, storage, permission, offline behavior, test, release 전략을 채운 문서여야 합니다. 빈 템플릿, placeholder, "추후 작성" 상태는 implementation gate를 통과할 수 없습니다.
 
-`mobile-review.md`는 `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue 상태, recommendations, next actions, build/test/mobile verification 결과를 포함해야 합니다. unresolved critical issue가 있거나 점수가 0/10 그대로 남아 있으면 review gate를 통과할 수 없습니다.
+`mobile-review.md`는 `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue 상태, recommendations, next actions, build/test/mobile verification 결과를 포함해야 합니다. unresolved critical issue가 있거나 점수가 8.0/10 미만이면 review gate를 통과할 수 없습니다.
 
 ## 협업 모델
 
