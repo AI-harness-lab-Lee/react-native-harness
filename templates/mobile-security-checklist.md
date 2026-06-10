@@ -17,8 +17,12 @@
 
 - [ ] 권한 요청은 기능 사용 시점에 한다.
 - [ ] 권한 요청 전에 사용자에게 목적을 설명한다.
+- [ ] permission prompt copy가 실제 기능 목적과 일치한다.
 - [ ] 권한 거부 시 fallback UX가 있다.
 - [ ] OS permission string이 실제 기능 목적과 일치한다.
+- [ ] camera/photo/location/notification 권한은 denied/granted/limited 상태를 각각 검증한다.
+- [ ] push notification 권한, 수신, open flow 또는 명시적 비사용 사유를 검증한다.
+- [ ] permission 상태 변경 후 앱 재시작 또는 화면 복귀 흐름을 검증한다.
 
 ## deep links
 
@@ -27,6 +31,7 @@
 - [ ] 인증이 필요한 화면은 auth state 확인 후 이동한다.
 - [ ] destructive action은 deep link만으로 실행하지 않는다.
 - [ ] 민감 화면은 deep link 진입 전에 authorization과 resource ownership을 확인한다.
+- [ ] deep link cold start와 warm start를 모두 검증한다.
 
 ## transport
 

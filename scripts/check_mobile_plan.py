@@ -23,6 +23,46 @@ REQUIRED_SECTIONS = [
     "배포 전략",
     "주요 리스크",
 ]
+REQUIRED_CONCEPT_GROUPS = {
+    "Expo/EAS 선택 근거": ["expo", "eas", "expo sdk"],
+    "workflow 전환 기준": ["managed", "prebuild", "bare", "react-native-cli", "workflow"],
+    "native module risk": ["native module", "native module risk", "네이티브 의존성"],
+    "build/release risk": ["build", "release risk", "릴리즈"],
+    "device matrix": [
+        "device matrix",
+        "ios simulator",
+        "android emulator",
+        "real device",
+        "생략 사유",
+        "small screen",
+        "large screen",
+        "dark mode",
+        "offline mode",
+    ],
+    "permission state evidence": ["permission evidence", "permission prompt", "push notification", "denied", "granted", "limited"],
+    "offline evidence": ["offline evidence", "poor network", "retry", "conflict"],
+    "deep link evidence": ["deep link", "cold start", "warm start"],
+    "mobile accessibility evidence": [
+        "screen reader label",
+        "dynamic type",
+        "font scaling",
+        "reduced motion",
+        "touch target size",
+        "contrast",
+        "keyboard avoidance",
+        "safe area",
+    ],
+    "release readiness evidence": [
+        "eas build",
+        "eas submit",
+        "app version",
+        "build number",
+        "crash reporting",
+        "ota update",
+        "rollback",
+    ],
+    "release risk evidence": ["permission prompt", "push notification", "app icon", "splash", "store metadata"],
+}
 PLACEHOLDER_WORDS = {
     "todo",
     "tbd",
@@ -74,6 +114,12 @@ def placeholder_count(text: str) -> int:
     return sum(len(re.findall(re.escape(word), text, re.IGNORECASE)) for word in PLACEHOLDER_WORDS)
 
 
+def has_terms(text: str, terms: list[str], minimum: int) -> bool:
+    lowered = text.lower()
+    hits = sum(1 for term in terms if term.lower() in lowered)
+    return hits >= minimum
+
+
 def load_template() -> str:
     harness_root = Path(__file__).resolve().parents[1]
     return (harness_root / "templates" / "mobile-plan.md").read_text(encoding="utf-8")
@@ -96,6 +142,11 @@ def validate(project_root: Path) -> list[str]:
     for section in REQUIRED_SECTIONS:
         if section not in names:
             failures.append(f"필수 섹션이 없습니다: {section}")
+
+    for label, terms in REQUIRED_CONCEPT_GROUPS.items():
+        minimum = 2 if len(terms) <= 4 else 3
+        if not has_terms(text, terms, minimum):
+            failures.append(f"필수 모바일 계획 근거가 부족합니다: {label}")
 
     empty_items = empty_item_count(text)
     if empty_items >= 6:

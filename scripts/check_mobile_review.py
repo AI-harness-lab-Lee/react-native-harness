@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
 
@@ -36,6 +37,44 @@ PLACEHOLDER_WORDS = {
 }
 MIN_SCORE = 8.0
 MAX_PLACEHOLDERS = 3
+REQUIRED_EVIDENCE_GROUPS = {
+    "device matrix": [
+        "device matrix",
+        "ios simulator",
+        "android emulator",
+        "real device",
+        "생략 사유",
+        "small screen",
+        "large screen",
+        "dark mode",
+        "offline mode",
+    ],
+    "permission evidence": ["permission", "permission prompt", "push notification", "denied", "granted", "limited"],
+    "offline evidence": ["offline", "poor network", "retry", "conflict"],
+    "deep link evidence": ["deep link", "cold start", "warm start"],
+    "accessibility evidence": [
+        "screen reader label",
+        "touch target size",
+        "dynamic type",
+        "font scaling",
+        "reduced motion",
+        "contrast",
+        "keyboard avoidance",
+        "safe area",
+    ],
+    "release evidence": [
+        "eas build",
+        "eas submit",
+        "signing",
+        "app version",
+        "build number",
+        "crash reporting",
+        "ota update",
+        "rollback",
+        "release checklist",
+    ],
+    "release risk evidence": ["permission prompt", "push notification", "app icon", "splash", "store metadata"],
+}
 
 
 def normalize(text: str) -> str:
@@ -113,6 +152,40 @@ def placeholder_count(text: str) -> int:
     return sum(len(re.findall(re.escape(word), text, re.IGNORECASE)) for word in PLACEHOLDER_WORDS)
 
 
+def has_terms(text: str, terms: list[str], minimum: int) -> bool:
+    lowered = text.lower()
+    hits = sum(1 for term in terms if term.lower() in lowered)
+    return hits >= minimum
+
+
+def validate_review_score_json(project_root: Path) -> list[str]:
+    path = project_root / ".harness" / "reports" / "review-score.json"
+    if not path.exists():
+        return []
+
+    failures: list[str] = []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"review-score.json JSON 파싱 실패: {exc}"]
+
+    for category in SCORE_CATEGORIES:
+        value = data.get(category)
+        if not isinstance(value, (int, float)):
+            failures.append(f"review-score.json에 숫자 score가 없습니다: {category}")
+        elif value < MIN_SCORE:
+            failures.append(f"review-score.json {category} 점수가 기준 미만입니다: {value} < 8")
+
+    for key in ["critical_issues", "release_blockers"]:
+        if key in data and not isinstance(data[key], list):
+            failures.append(f"review-score.json {key}는 list여야 합니다.")
+
+    if data.get("release_blockers"):
+        failures.append("review-score.json에 release_blockers가 남아 있습니다.")
+
+    return failures
+
+
 def validate(project_root: Path) -> list[str]:
     failures: list[str] = []
     path = project_root / ".harness" / "reports" / "mobile-review.md"
@@ -146,6 +219,13 @@ def validate(project_root: Path) -> list[str]:
     verification = extract_section(text, "검증 결과")
     if not has_verification_result(verification):
         failures.append("검증 결과 섹션의 build/test 또는 mobile verification 결과가 비어 있습니다.")
+
+    for label, terms in REQUIRED_EVIDENCE_GROUPS.items():
+        minimum = 2 if len(terms) <= 4 else 3
+        if not has_terms(text, terms, minimum):
+            failures.append(f"필수 모바일 review evidence가 부족합니다: {label}")
+
+    failures.extend(validate_review_score_json(project_root))
 
     placeholders = placeholder_count(text)
     if placeholders >= MAX_PLACEHOLDERS:

@@ -22,8 +22,10 @@
 
 - 권한은 앱 시작 시 일괄 요청하지 않는다. 기능 사용 시점에 최소 권한만 요청한다.
 - 권한 요청 전 사용자에게 목적을 설명하고, 거부 시 fallback UX를 제공한다.
+- permission prompt copy는 실제 기능 목적과 일치해야 하며 release checklist에 evidence를 남긴다.
 - permission 요청에 목적 설명 또는 거부 fallback이 없으면 차단 이슈다.
 - camera, location, contacts, photo library, microphone, notification 권한은 별도 리스크로 기록한다.
+- camera/photo/location/notification 권한은 denied/granted/limited 상태와 OS 설정에서 권한을 변경한 뒤 복귀 흐름을 검증한다.
 
 ## deep link
 
@@ -32,6 +34,7 @@
 - 인증이 필요한 route는 auth state와 authorization을 확인한 뒤 이동한다.
 - deep link가 allowlist와 auth state 검증 없이 민감 화면으로 이동하면 차단 이슈다.
 - 결제, 삭제, 권한 변경 같은 destructive action은 deep link 진입만으로 실행하지 않는다.
+- deep link는 앱 미실행 상태의 cold start와 실행 중 상태의 warm start를 모두 검증한다.
 
 ## transport
 
