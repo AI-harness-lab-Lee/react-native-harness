@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import stat
 from pathlib import Path
 
 
@@ -125,11 +127,38 @@ def load_template() -> str:
     return (harness_root / "templates" / "mobile-plan.md").read_text(encoding="utf-8")
 
 
+def canonical_plan_path(project_root: Path) -> tuple[Path | None, str | None]:
+    try:
+        root = project_root.resolve(strict=True)
+    except OSError as exc:
+        return None, f"project root를 확인할 수 없습니다: {project_root}: {exc}"
+    relative = Path(".harness/mobile-plan.md")
+    candidate = root / relative
+    current = root
+    for part in relative.parts:
+        current = current / part
+        try:
+            mode = os.lstat(current).st_mode
+        except FileNotFoundError:
+            return None, f"필수 파일이 없습니다: {candidate}"
+        except OSError as exc:
+            return None, f"mobile-plan.md 경로를 확인할 수 없습니다: {current}: {exc}"
+        if stat.S_ISLNK(mode):
+            return None, f"mobile-plan.md 경로에 symlink가 포함되어 있습니다: {current}"
+    stat_result = os.lstat(candidate)
+    if not stat.S_ISREG(stat_result.st_mode):
+        return None, f"mobile-plan.md는 project 내부 regular file이어야 합니다: {candidate}"
+    if stat_result.st_nlink != 1:
+        return None, f"mobile-plan.md hardlink는 허용되지 않습니다: {candidate}"
+    return candidate, None
+
+
 def validate(project_root: Path) -> list[str]:
     failures: list[str] = []
-    path = project_root / ".harness" / "mobile-plan.md"
-    if not path.exists():
-        return [f"필수 파일이 없습니다: {path}"]
+    path, path_error = canonical_plan_path(project_root)
+    if path_error:
+        return [path_error]
+    assert path is not None
 
     text = path.read_text(encoding="utf-8")
     if not text.strip():

@@ -68,4 +68,3 @@
 - mobile plan이 Expo/EAS/native module 선택 근거를 포함
 - mobile review가 device matrix, permission, offline, accessibility, release evidence를 포함
 - release checklist validator가 signing/build/OTA/crash reporting 누락을 실패 처리
-

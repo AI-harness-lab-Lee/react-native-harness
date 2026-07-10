@@ -123,6 +123,8 @@ QA는 `qa-harness`와 협력하지만, iOS/Android, simulator/device, OS version
 
 `review-score.json`을 작성할 때는 위 다섯 score category를 숫자로 제공하고, PM gate가 읽을 수 있도록 `critical_issues`, `release_blockers`, evidence path를 함께 둡니다.
 
+`scripts/check_mobile_review.py`는 `mobile-review.md` 판정의 정식(canonical) 구현입니다. `scripts/check_mobile_release.py`는 PM registry-facing entrypoint이며, canonical review 판정을 실행한 뒤 release checklist 판정을 결합합니다. 유효한 동일 checklist를 둔 fixture에서는 두 검증기의 mobile review 성공/실패 의미가 항상 같아야 합니다.
+
 ## PM gate contract
 
 PM gate는 다음 command를 프로젝트 root에서 실행할 수 있어야 합니다.
@@ -133,7 +135,9 @@ python3 .harness/harnesses/react-native-harness/scripts/check_mobile_review.py -
 python3 .harness/harnesses/react-native-harness/scripts/check_mobile_release.py --project-root . --json --output-json .harness/reports/mobile-release-gate.json
 ```
 
-`check_mobile_release.py`는 `validator: mobile-release`, `status`, `artifact`, `required_artifacts`, `pm_gate.score_category: release_readiness`, `pm_gate.blocks_on_failure`, `failures`를 JSON으로 출력합니다. template 그대로인 checklist, unchecked checklist, evidence detail 없는 checklist, device/accessibility/release-risk evidence 누락은 모두 PM release gate를 차단합니다.
+`check_mobile_release.py`는 `validator: mobile-release`, `status`, `artifact`, `artifacts`, 두 개의 `required_artifacts`, 다섯 `score_categories`, `pm_gate.blocks_on_failure`, `failures`를 JSON으로 출력합니다. mobile review의 category 누락, `8.0/10` 미만 점수, unresolved critical issue, 비어 있는 verification, blank template 또는 report 누락은 모두 차단합니다. template 그대로인 checklist, unchecked checklist, evidence detail 없는 checklist, device/accessibility/release-risk evidence 누락도 PM release gate를 차단합니다.
+
+두 validator는 project evidence를 `--project-root` 내부에서만 읽습니다. symlink와 custom path가 root 외부를 가리키면 읽기 전에 실패하며 network, credential lookup, secret source에 접근하지 않습니다. validator 계약은 `PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/smoke_mobile_review_fixtures.py`로 회귀 검증합니다.
 
 ## 협업 모델
 

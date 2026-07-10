@@ -36,6 +36,18 @@ release_readiness: 0/10
 
 - 없음
 
+## High Issues
+
+| Issue | Severity | Status | Decision |
+| --- | --- | --- | --- |
+| none | none | resolved | proceed |
+
+## Release Blockers
+
+| Blocker | Status | Release Blocker | Decision |
+| --- | --- | --- | --- |
+| none | resolved | no | proceed |
+
 ## mobile_quality
 
 - 구조:
@@ -124,7 +136,9 @@ release_readiness: 0/10
   "security": 8.7,
   "release_readiness": 8.1,
   "critical_issues": [],
+  "high_issues": [],
   "release_blockers": [],
+  "release_ready": true,
   "evidence": {
     "device_matrix": ".harness/reports/mobile-review.md#device-matrix",
     "release_checklist": ".harness/release-checklist.md"

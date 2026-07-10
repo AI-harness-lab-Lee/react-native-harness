@@ -69,15 +69,20 @@ policies/mobile-performance-policy.md
 scripts/check_mobile_plan.py
 scripts/check_mobile_review.py
 scripts/check_mobile_release.py
+scripts/smoke_mobile_review_fixtures.py
 ```
 
 ## 산출물과 검증
 
-이 하네스가 담당하는 프로젝트 산출물은 다음 두 개입니다.
+이 하네스가 담당하는 프로젝트 산출물은 다음 세 개입니다.
 
 - `.harness/mobile-plan.md`: 모바일 앱 목표, 플랫폼, runtime/tooling, architecture, navigation, state management, API, storage, permission, offline behavior, test, release 전략
 - `.harness/reports/mobile-review.md`: `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue, recommendations, next actions, 검증 결과. 각 점수는 `8.0/10` 이상이어야 하며 8점 미만은 통과할 수 없습니다.
 - `.harness/release-checklist.md`: release readiness를 주장하기 전 signing, environment config, app version/build number, crash reporting, OTA/rollback, store submission, device/permission/offline/deep link/accessibility evidence를 기록합니다.
+
+`scripts/check_mobile_review.py`는 `.harness/reports/mobile-review.md`의 정식(canonical) 검증기입니다. 다섯 score category가 모두 `8.0/10` 이상이고, unresolved Critical Issues가 없으며, 실제 build/test/mobile verification과 충분한 모바일 evidence가 있어야 통과합니다.
+
+`scripts/check_mobile_release.py`는 PM registry가 호출하는 통합 entrypoint입니다. 정식 mobile review 검증을 그대로 실행한 뒤 `.harness/release-checklist.md`도 검증하므로, 두 산출물 중 하나라도 실패하면 PM gate를 차단합니다. JSON 결과에는 다섯 score category와 두 required artifact가 포함됩니다. 검증 대상과 JSON 출력은 `--project-root` 내부 경로로 제한되며 검증기는 network 또는 secret source에 접근하지 않습니다.
 
 검증 스크립트는 실제 프로젝트 root에서 실행합니다.
 
@@ -94,6 +99,12 @@ python3 scripts/check_mobile_plan.py --project-root /path/to/project
 python3 scripts/check_mobile_review.py --project-root /path/to/project
 python3 scripts/check_mobile_release.py --project-root /path/to/project
 python3 scripts/check_mobile_release.py --project-root /path/to/project --json --output-json /path/to/project/.harness/reports/mobile-release-gate.json
+```
+
+정상/실패 경계와 canonical/registry 판정 일치는 고정 fixture smoke로 확인합니다.
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/smoke_mobile_review_fixtures.py
 ```
 
 ## 선택 기준

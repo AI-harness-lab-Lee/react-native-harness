@@ -1,12 +1,35 @@
 #!/usr/bin/env python3
-"""Validate project-local mobile release checklist quality."""
+"""Run the PM registry-facing mobile review and release gate."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import stat
+import tempfile
 from pathlib import Path
+
+if __package__:
+    from .check_mobile_review import SCORE_CATEGORIES as REVIEW_SCORE_CATEGORIES
+    from .check_mobile_review import project_file
+    from .check_mobile_review import validate as validate_mobile_review
+else:
+    from check_mobile_review import SCORE_CATEGORIES as REVIEW_SCORE_CATEGORIES
+    from check_mobile_review import project_file
+    from check_mobile_review import validate as validate_mobile_review
+
+
+SCORE_CATEGORIES = [
+    "mobile_quality",
+    "accessibility",
+    "performance",
+    "security",
+    "release_readiness",
+]
+if SCORE_CATEGORIES != REVIEW_SCORE_CATEGORIES:
+    raise RuntimeError("mobile review와 registry entrypoint의 score category가 일치하지 않습니다.")
 
 
 REQUIRED_SECTIONS = [
@@ -91,10 +114,6 @@ MIN_DETAIL_LINES = 8
 MIN_USEFUL_WORDS = 180
 
 
-def normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip().lower()
-
-
 def section_names(text: str) -> set[str]:
     names: set[str] = set()
     for match in re.finditer(r"^##\s+(.+?)\s*$", text, re.MULTILINE):
@@ -111,11 +130,6 @@ def extract_section(text: str, heading: str) -> str:
     next_heading = re.search(r"^##\s+", text[start:], re.MULTILINE)
     end = start + next_heading.start() if next_heading else len(text)
     return text[start:end].strip()
-
-
-def load_template() -> str:
-    harness_root = Path(__file__).resolve().parents[1]
-    return (harness_root / "templates" / "release-checklist.md").read_text(encoding="utf-8")
 
 
 def placeholder_count(text: str) -> int:
@@ -151,27 +165,135 @@ def has_terms(text: str, terms: list[str], minimum: int) -> bool:
     return hits >= minimum
 
 
-def checkbox_labels(text: str) -> list[str]:
-    labels: list[str] = []
-    for match in re.finditer(r"^\s*-\s*\[[ xX]\]\s+(.+?)\s*$", text, re.MULTILINE):
-        labels.append(normalize(match.group(1)))
-    return labels
+def output_path_within_project(project_root: Path, requested_path: Path) -> tuple[Path | None, str | None]:
+    supplied_root = Path(os.path.abspath(project_root))
+    try:
+        root = project_root.resolve(strict=True)
+    except OSError as exc:
+        return None, f"project root를 확인할 수 없습니다: {project_root}: {exc}"
+    if requested_path.is_absolute():
+        requested_absolute = Path(os.path.abspath(requested_path))
+        try:
+            candidate = root / requested_absolute.relative_to(supplied_root)
+        except ValueError:
+            candidate = requested_absolute
+    else:
+        candidate = root / requested_path
+    candidate = Path(os.path.abspath(candidate))
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None, f"output JSON 경로가 project root 외부입니다: {candidate}"
+
+    current = root
+    relative = candidate.relative_to(root)
+    for part in relative.parts[:-1]:
+        current = current / part
+        try:
+            mode = os.lstat(current).st_mode
+        except FileNotFoundError:
+            try:
+                current.mkdir()
+                mode = os.lstat(current).st_mode
+            except OSError as exc:
+                return None, f"output JSON parent를 만들 수 없습니다: {current}: {exc}"
+        except OSError as exc:
+            return None, f"output JSON parent를 확인할 수 없습니다: {current}: {exc}"
+        if stat.S_ISLNK(mode):
+            return None, f"output JSON 경로에 symlink component가 있습니다: {current}"
+        if not stat.S_ISDIR(mode):
+            return None, f"output JSON parent가 directory가 아닙니다: {current}"
+
+    try:
+        mode = os.lstat(candidate).st_mode
+    except FileNotFoundError:
+        return candidate, None
+    except OSError as exc:
+        return None, f"output JSON 경로를 확인할 수 없습니다: {candidate}: {exc}"
+    if stat.S_ISLNK(mode):
+        return None, f"output JSON symlink는 허용되지 않습니다: {candidate}"
+    if not stat.S_ISREG(mode):
+        return None, f"output JSON은 regular file이어야 합니다: {candidate}"
+    return candidate, None
 
 
-def validate(project_root: Path, release_path: Path | None = None) -> list[str]:
+def output_input_collision_error(
+    project_root: Path,
+    output_path: Path,
+    release_path: Path | None,
+) -> str | None:
+    root = project_root.resolve(strict=True)
+
+    def normalized_input(requested: Path) -> Path:
+        candidate = requested if requested.is_absolute() else root / requested
+        return Path(os.path.abspath(candidate))
+
+    protected_inputs = {
+        normalized_input(Path(".harness/release-checklist.md")),
+        normalized_input(Path(".harness/reports/mobile-review.md")),
+        normalized_input(Path(".harness/reports/review-score.json")),
+    }
+    if release_path is not None:
+        protected_inputs.add(normalized_input(release_path))
+    if output_path in protected_inputs:
+        return f"output JSON 경로가 validation input artifact와 충돌합니다: {output_path}"
+    return None
+
+
+def atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+    descriptor: int | None = None
+    temp_path: Path | None = None
+    try:
+        descriptor, temp_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        temp_path = Path(temp_name)
+        mode = os.fstat(descriptor).st_mode
+        if not stat.S_ISREG(mode):
+            raise OSError(f"temporary output이 regular file이 아닙니다: {temp_path}")
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            descriptor = None
+            stream.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_path, path)
+        temp_path = None
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
+def validate_release_checklist(project_root: Path, release_path: Path | None = None) -> list[str]:
     failures: list[str] = []
-    path = release_path or project_root / ".harness" / "release-checklist.md"
-    if not path.exists():
-        return [f"필수 파일이 없습니다: {path}"]
+    requested_path = release_path or project_root / ".harness" / "release-checklist.md"
+    path, path_error = project_file(
+        project_root,
+        requested_path,
+        "release checklist",
+        required=True,
+    )
+    if path_error:
+        return [path_error]
+    assert path is not None
 
     text = path.read_text(encoding="utf-8")
     if not text.strip():
         failures.append("release-checklist.md가 비어 있습니다.")
 
-    if normalize(text) == normalize(load_template()):
+    checked = checked_count(text)
+    unchecked = unchecked_count(text)
+    details = detail_line_count(text)
+    if checked == 0 and unchecked >= MIN_CHECKED_ITEMS:
         failures.append("release-checklist.md가 템플릿 그대로입니다.")
 
-    if checkbox_labels(text) == checkbox_labels(load_template()) and detail_line_count(text) < MIN_DETAIL_LINES:
+    if checked >= MIN_CHECKED_ITEMS and details < MIN_DETAIL_LINES:
         failures.append("release-checklist.md가 템플릿 체크 항목만 채운 상태이며 실제 evidence detail이 부족합니다.")
 
     names = section_names(text)
@@ -188,15 +310,12 @@ def validate(project_root: Path, release_path: Path | None = None) -> list[str]:
         if not re.search(pattern, text, re.IGNORECASE | re.MULTILINE):
             failures.append(f"필수 완료 체크 항목이 없습니다: {label}")
 
-    unchecked = unchecked_count(text)
     if unchecked:
         failures.append(f"완료되지 않은 release checklist 항목이 남아 있습니다: {unchecked}개")
 
-    checked = checked_count(text)
     if checked < MIN_CHECKED_ITEMS:
         failures.append(f"완료된 release checklist 항목이 너무 적습니다: {checked}개")
 
-    details = detail_line_count(text)
     if details < MIN_DETAIL_LINES:
         failures.append(f"release evidence 상세 설명이 부족합니다: {details}개 detail line")
 
@@ -217,16 +336,38 @@ def validate(project_root: Path, release_path: Path | None = None) -> list[str]:
     return failures
 
 
+def validate(project_root: Path, release_path: Path | None = None) -> list[str]:
+    """Validate both canonical mobile review evidence and release readiness."""
+    project_root = project_root.resolve()
+    review_failures = [f"mobile-review: {failure}" for failure in validate_mobile_review(project_root)]
+    release_failures = [
+        f"release-checklist: {failure}"
+        for failure in validate_release_checklist(project_root, release_path)
+    ]
+    return review_failures + release_failures
+
+
 def result_payload(project_root: Path, release_path: Path, failures: list[str]) -> dict[str, object]:
     return {
         "validator": "mobile-release",
         "status": "fail" if failures else "pass",
         "project_root": str(project_root),
         "artifact": str(release_path),
-        "required_artifacts": [".harness/release-checklist.md"],
+        "artifacts": {
+            "mobile_review": ".harness/reports/mobile-review.md",
+            "review_score": ".harness/reports/review-score.json",
+            "release_checklist": str(release_path),
+        },
+        "required_artifacts": [
+            ".harness/reports/mobile-review.md",
+            ".harness/reports/review-score.json",
+            ".harness/release-checklist.md",
+        ],
+        "score_categories": SCORE_CATEGORIES,
         "pm_gate": {
             "output": ".harness/release-checklist.md",
             "score_category": "release_readiness",
+            "score_categories": SCORE_CATEGORIES,
             "blocks_on_failure": True,
         },
         "failures": failures,
@@ -234,7 +375,7 @@ def result_payload(project_root: Path, release_path: Path, failures: list[str]) 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="모바일 release checklist 검증")
+    parser = argparse.ArgumentParser(description="PM registry용 모바일 review/release 통합 검증")
     parser.add_argument("--project-root", type=Path, default=Path.cwd(), help="실제 프로젝트 root")
     parser.add_argument("--release-checklist", type=Path, help="검증할 release checklist 경로")
     parser.add_argument("--json", action="store_true", help="PM gate가 읽을 수 있는 JSON 결과 출력")
@@ -242,14 +383,36 @@ def main() -> None:
     args = parser.parse_args()
 
     project_root = args.project_root.resolve()
-    release_path = args.release_checklist.resolve() if args.release_checklist else None
-    artifact_path = release_path or project_root / ".harness" / "release-checklist.md"
+    release_path = args.release_checklist
+    requested_artifact = release_path or Path(".harness/release-checklist.md")
+    artifact_path = Path(
+        os.path.abspath(
+            requested_artifact
+            if requested_artifact.is_absolute()
+            else project_root / requested_artifact
+        )
+    )
     failures = validate(project_root, release_path)
+
+    output_path: Path | None = None
+    if args.output_json:
+        output_path, output_error = output_path_within_project(args.project_root, args.output_json)
+        if output_error:
+            failures.append(output_error)
+        elif output_path is not None:
+            collision_error = output_input_collision_error(project_root, output_path, release_path)
+            if collision_error:
+                failures.append(collision_error)
+                output_path = None
+
     payload = result_payload(project_root, artifact_path, failures)
 
-    if args.output_json:
-        args.output_json.parent.mkdir(parents=True, exist_ok=True)
-        args.output_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if output_path is not None:
+        try:
+            atomic_write_json(output_path, payload)
+        except OSError as exc:
+            failures.append(f"output JSON atomic write 실패: {exc}")
+            payload = result_payload(project_root, artifact_path, failures)
 
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))

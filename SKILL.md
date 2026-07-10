@@ -42,9 +42,11 @@ If `app/` exists with Expo Router conventions, inspect routing and deep link beh
 - Write `.harness/reports/mobile-release-gate.json` when the PM gate requests machine-readable release status.
 - When reviewing, include mobile findings in `.harness/reports/review-score.json` if the PM flow asks for score aggregation.
 - Validate `.harness/mobile-plan.md` with `scripts/check_mobile_plan.py` before implementation starts.
-- Validate `.harness/reports/mobile-review.md` with `scripts/check_mobile_review.py` before asking PM to pass the review gate.
-- Validate `.harness/release-checklist.md` with `scripts/check_mobile_release.py` before release readiness is marked green.
-- For PM gate integration, run `scripts/check_mobile_release.py --project-root . --json --output-json .harness/reports/mobile-release-gate.json`.
+- Treat `scripts/check_mobile_review.py` as the canonical validator for `.harness/reports/mobile-review.md`; run it before asking PM to pass the review gate.
+- Treat `scripts/check_mobile_release.py` as the PM registry-facing entrypoint. It applies the canonical mobile review decision and also validates `.harness/release-checklist.md`; either artifact can block release readiness.
+- For PM gate integration, run `scripts/check_mobile_release.py --project-root . --json --output-json .harness/reports/mobile-release-gate.json`. Keep custom checklist and JSON output paths inside `--project-root`.
+- Validators must read project evidence only from `--project-root`; do not add network calls, credential lookup, or secret-source access to validation.
+- Run `PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/smoke_mobile_review_fixtures.py` after validator changes to prove canonical/registry parity and score, critical issue, verification, template, and missing-report boundaries.
 
 ## Decision Defaults
 
@@ -99,4 +101,5 @@ Block review when any of these are true:
 - Production build includes development endpoints, test credentials, or secrets.
 - Release path lacks signing ownership, crash reporting, or OTA update policy.
 - Release checklist is missing, still a blank template, contains unchecked items, has only checked template text without evidence detail, or lacks version/build number, signing, environment config, crash reporting, OTA/rollback, device matrix, mobile accessibility, release risk, and store submission evidence.
+- Mobile review is missing, still a blank template, omits any required score category, has a score below `8.0/10`, contains an unresolved Critical Issue, or lacks actual build/test/mobile verification evidence.
 - Critical mobile flow has no test strategy.
