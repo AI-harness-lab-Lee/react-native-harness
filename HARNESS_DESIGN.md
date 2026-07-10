@@ -16,6 +16,11 @@ triggers:
 outputs:
   - .harness/mobile-plan.md
   - .harness/reports/mobile-review.md
+  - .harness/release-checklist.md
+validators:
+  - scripts/check_mobile_plan.py
+  - scripts/check_mobile_review.py
+  - scripts/check_mobile_release.py
 score_categories:
   - mobile_quality
   - accessibility
@@ -30,18 +35,23 @@ score_categories:
 
 모바일 앱은 웹보다 권한, 저장소, 배포, 네이티브 의존성, 앱스토어 릴리즈 리스크가 큽니다. 따라서 하네스는 코드 구조뿐 아니라 권한 요청, local storage, token handling, offline behavior, navigation safety, crash reporting, release checklist까지 검토해야 합니다.
 
-기본 추천은 Expo 기반 시작입니다. Expo는 빠른 MVP, EAS Build, OTA update, 일반적인 native capability를 안정적으로 다루기 좋습니다. 다만 필수 네이티브 모듈, custom native code, 복잡한 platform-specific build requirement가 명확하면 React Native CLI를 선택합니다.
+기본 추천은 Expo 기반 시작입니다. Expo는 빠른 MVP, EAS Build, OTA update, 일반적인 native capability를 안정적으로 다루기 좋습니다. 이 하네스의 1차 지원 범위는 Expo managed workflow와 Expo prebuild/dev client입니다. bare React Native와 React Native CLI는 release review, native signing, Xcode/Gradle 절차, native module risk를 검토하는 범위로 지원하지만, bare 전환 자체는 별도 task packet과 release risk 승인이 필요합니다.
+
+Expo를 선택할 때는 Expo SDK version, managed/prebuild/bare workflow, config plugin coverage, EAS Build profile, EAS Submit, EAS Update channel/runtimeVersion, rollback 조건을 계획에 남깁니다. React Native CLI를 선택할 때는 Xcode/Gradle release 절차, native signing ownership, native module 유지보수 리스크, store submission 영향까지 함께 문서화합니다.
 
 보안은 `web-security-harness`와 협력하지만, mobile secure storage, biometric permission, deep link validation, certificate pinning, PII local storage 금지 같은 모바일 고유 보안 정책은 이 하네스가 담당합니다.
 
 QA는 `qa-harness`와 협력하지만, iOS/Android, simulator/device, OS version, permission state, offline/online 전환 같은 기기/플랫폼 테스트 계획은 이 하네스가 담당합니다.
 
+모든 리뷰는 iOS simulator, Android emulator, 최소 1개 real device 또는 생략 사유를 포함하는 device matrix를 남겨야 합니다. small screen, large screen, dark mode, offline mode, permission denied/granted/limited, permission prompt, push notification, offline/poor network/retry/conflict, deep link cold start/warm start, app icon/splash, store metadata, screen reader label, dynamic type/font scaling, reduced motion, touch target size, contrast, keyboard avoidance, safe area evidence가 없으면 release readiness를 통과시킬 수 없습니다.
+
 ## 선택지
 
 ### runtime/tooling
 
-- `expo`: 기본 추천. MVP, 일반적인 앱, EAS Build, OTA update를 빠르게 가져갈 때 선택합니다.
-- `react-native-cli`: native module 요구가 강하거나, 플랫폼별 native code와 custom build 제어가 중요한 경우 선택합니다.
+- `expo-managed`: 기본 추천. MVP, 일반적인 앱, EAS Build, EAS Submit, EAS Update를 빠르게 가져갈 때 선택합니다. Expo SDK와 managed workflow 유지 조건을 반드시 기록합니다.
+- `expo-prebuild-dev-client`: Expo managed에서 config plugin, dev client, native entitlement, custom native dependency가 필요할 때 선택합니다. prebuild 산출물 소유권과 native diff review 기준을 기록합니다.
+- `react-native-cli` 또는 `bare-react-native`: native module 요구가 강하거나, 플랫폼별 native code와 custom build 제어가 중요한 경우 선택합니다. Xcode/Gradle release, signing ownership, store submission 영향, Expo로 되돌릴 수 없는 비용을 반드시 기록합니다.
 
 ### architecture
 
@@ -93,20 +103,41 @@ QA는 `qa-harness`와 협력하지만, iOS/Android, simulator/device, OS version
 ### release
 
 - `EAS Build`: Expo 기반 release pipeline의 기본값입니다.
+- `EAS Submit`: store 제출 자동화가 필요한 경우 App Store Connect/Play Console 권한과 함께 검토합니다.
 - `iOS/Android signing`: signing key, provisioning, keystore 접근 권한을 분리합니다.
 - `environment config`: dev/staging/prod config와 secret 주입 경계를 분리합니다.
 - `crash reporting`: Sentry, Firebase Crashlytics 등 하나를 선택해 release 전 검증합니다.
-- `OTA update policy`: update 가능 범위, rollback 조건, native binary mismatch 기준을 정합니다.
+- `OTA update policy`: update 가능 범위, EAS channel/branch, runtimeVersion, rollback 조건, native binary mismatch 기준을 정합니다.
+- `version/build number`: app version, iOS build number, Android versionCode와 release tag 일치 여부를 검증합니다.
 
 ## 산출물
 
 - `.harness/mobile-plan.md`: 모바일 설계와 개발 전략
 - `.harness/reports/mobile-review.md`: 모바일 전문 리뷰 결과
 - `.harness/reports/review-score.json`: PM review gate가 읽는 점수 자료에 mobile category 반영
+- `.harness/release-checklist.md`: signing, environment, version/build number, crash reporting, OTA/rollback, store submission evidence
 
 `mobile-plan.md`는 실제 프로젝트의 runtime/tooling, architecture, navigation, state management, API, storage, permission, offline behavior, test, release 전략을 채운 문서여야 합니다. 빈 템플릿, placeholder, "추후 작성" 상태는 implementation gate를 통과할 수 없습니다.
 
-`mobile-review.md`는 `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue 상태, recommendations, next actions, build/test/mobile verification 결과를 포함해야 합니다. unresolved critical issue가 있거나 점수가 8.0/10 미만이면 review gate를 통과할 수 없습니다.
+`mobile-review.md`는 `mobile_quality`, `accessibility`, `performance`, `security`, `release_readiness` 점수와 critical issue 상태, recommendations, next actions, build/test/mobile verification 결과를 포함해야 합니다. device matrix, permission/offline/deep link evidence, mobile accessibility evidence, release checklist status가 없으면 release readiness 근거가 부족한 것으로 봅니다. unresolved critical issue가 있거나 점수가 8.0/10 미만이면 review gate를 통과할 수 없습니다.
+
+`review-score.json`을 작성할 때는 위 다섯 score category를 숫자로 제공하고, PM gate가 읽을 수 있도록 `critical_issues`, `release_blockers`, evidence path를 함께 둡니다.
+
+`scripts/check_mobile_review.py`는 `mobile-review.md` 판정의 정식(canonical) 구현입니다. `scripts/check_mobile_release.py`는 PM registry-facing entrypoint이며, canonical review 판정을 실행한 뒤 release checklist 판정을 결합합니다. 유효한 동일 checklist를 둔 fixture에서는 두 검증기의 mobile review 성공/실패 의미가 항상 같아야 합니다.
+
+## PM gate contract
+
+PM gate는 다음 command를 프로젝트 root에서 실행할 수 있어야 합니다.
+
+```bash
+python3 .harness/harnesses/react-native-harness/scripts/check_mobile_plan.py --project-root .
+python3 .harness/harnesses/react-native-harness/scripts/check_mobile_review.py --project-root .
+python3 .harness/harnesses/react-native-harness/scripts/check_mobile_release.py --project-root . --json --output-json .harness/reports/mobile-release-gate.json
+```
+
+`check_mobile_release.py`는 `validator: mobile-release`, `status`, `artifact`, `artifacts`, 두 개의 `required_artifacts`, 다섯 `score_categories`, `pm_gate.blocks_on_failure`, `failures`를 JSON으로 출력합니다. mobile review의 category 누락, `8.0/10` 미만 점수, unresolved critical issue, 비어 있는 verification, blank template 또는 report 누락은 모두 차단합니다. template 그대로인 checklist, unchecked checklist, evidence detail 없는 checklist, device/accessibility/release-risk evidence 누락도 PM release gate를 차단합니다.
+
+두 validator는 project evidence를 `--project-root` 내부에서만 읽습니다. symlink와 custom path가 root 외부를 가리키면 읽기 전에 실패하며 network, credential lookup, secret source에 접근하지 않습니다. validator 계약은 `PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/smoke_mobile_review_fixtures.py`로 회귀 검증합니다.
 
 ## 협업 모델
 

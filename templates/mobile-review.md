@@ -36,6 +36,18 @@ release_readiness: 0/10
 
 - 없음
 
+## High Issues
+
+| Issue | Severity | Status | Decision |
+| --- | --- | --- | --- |
+| none | none | resolved | proceed |
+
+## Release Blockers
+
+| Blocker | Status | Release Blocker | Decision |
+| --- | --- | --- | --- |
+| none | resolved | no | proceed |
+
 ## mobile_quality
 
 - 구조:
@@ -46,9 +58,13 @@ release_readiness: 0/10
 ## accessibility
 
 - screen reader:
-- touch target:
+- screen reader label:
+- touch target size:
 - label/role:
 - contrast:
+- dynamic type/font scaling:
+- reduced motion:
+- keyboard avoidance/safe area:
 
 ## performance
 
@@ -62,17 +78,73 @@ release_readiness: 0/10
 
 - token secure storage:
 - biometric permission:
+- permission evidence:
+  - camera/photo:
+  - location:
+  - notification:
+  - denied/granted/limited:
 - deep link validation:
+- deep link cold start:
+- deep link warm start:
 - certificate pinning:
 - PII local storage:
 
 ## release_readiness
 
 - EAS Build/native build:
+- EAS Submit/store submit:
 - iOS/Android signing:
 - environment config:
+- app version/build number:
 - crash reporting:
+- source map/symbol upload:
 - OTA update policy:
+- rollback policy:
+- release checklist:
+
+## device matrix
+
+| Platform | Device | Simulator/Emulator/Real | OS version | Screen size | Locale | Accessibility setting | Result | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| iOS |  | iOS simulator |  | small screen |  | dark mode |  |  |
+| Android |  | Android emulator |  | large screen |  | offline mode |  |  |
+| iOS/Android |  | real device 또는 생략 사유 |  |  |  |  |  |  |
+
+## permission/offline/deep link evidence
+
+- permission granted:
+- permission denied:
+- permission limited:
+- permission prompt:
+- push notification:
+- offline:
+- offline mode:
+- poor network/retry:
+- sync conflict:
+- deep link cold start:
+- deep link warm start:
+- app icon/splash:
+- store metadata:
+
+## review-score.json 예시
+
+```json
+{
+  "mobile_quality": 8.5,
+  "accessibility": 8.0,
+  "performance": 8.2,
+  "security": 8.7,
+  "release_readiness": 8.1,
+  "critical_issues": [],
+  "high_issues": [],
+  "release_blockers": [],
+  "release_ready": true,
+  "evidence": {
+    "device_matrix": ".harness/reports/mobile-review.md#device-matrix",
+    "release_checklist": ".harness/release-checklist.md"
+  }
+}
+```
 
 ## recommendations
 
@@ -87,5 +159,7 @@ release_readiness: 0/10
 - build:
 - test:
 - mobile verification:
-- device/platform:
+- device matrix:
+- permission/offline/deep link:
+- release checklist:
 - 남은 검증:
